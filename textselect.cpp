@@ -122,6 +122,7 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
 
     // Get mouse click count and determine action
     if (int mouseClicks = ImGui::GetMouseClickedCount(ImGuiMouseButton_Left); mouseClicks > 0) {
+        const ImGuiIO& io = ImGui::GetIO();
         if (mouseClicks % 3 == 0) {
             // Triple click - select line
             selectStart = { 0, y };
@@ -151,7 +152,7 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
                 if (isBoundary(*endIt) != isCurrentBoundary) break;
                 endIt++;
             }
-        } else if (ImGui::IsKeyDown(ImGuiMod_Shift)) {
+        } else if (io.KeyShift) {
             // Single click with shift - select text from start to click
             // The selection starts from the beginning if no start position exists
             if (selectStart.isInvalid()) selectStart = { 0, 0 };
@@ -290,7 +291,16 @@ void TextSelect::update() {
 
     drawSelection(cursorPosStart);
 
+    const ImGuiIO& io = ImGui::GetIO();
+
     // Keyboard shortcuts
-    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_A)) selectAll();
-    else if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_C)) copy();
+    if (ImGui::IsWindowFocused()) {
+        ImGui::CaptureKeyboardFromApp(true);
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_A)) {
+            selectAll();
+        }
+        else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C)) {
+            copy();
+        }
+	}
 }

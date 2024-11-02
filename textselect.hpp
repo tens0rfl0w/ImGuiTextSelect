@@ -40,7 +40,7 @@ class TextSelect {
 
     // Accessor functions to get line information
     // This class only knows about line numbers so it must be provided with functions that give it text data.
-    std::function<std::string_view(size_t)> getLineAtIdx; // Gets the string given a line number
+    std::function<std::string_view(std::size_t)> getLineAtIdx; // Gets the string given a line number
     std::function<std::size_t()> getNumLines; // Gets the total number of lines
     std::function<float(std::size_t)> getTextOffset; // Gets the offset of the text
 
@@ -79,5 +79,5 @@ public:
     void selectAll();
 
     // Draws the text selection rectangle and handles user input.
-    void update(size_t itemOffset = 0);
+    void update(std::size_t itemOffset = 0);
 };

@@ -27,8 +27,7 @@ static bool isBoundary(char32_t c) {
         Range{ 0x7B, 0xBF }
     };
 
-    return std::find_if(ranges.begin(), ranges.end(), [c](const Range& r) { return c >= r[0] && c <= r[1]; })
-        != ranges.end();
+    return std::ranges::find_if(ranges, [c](const Range& r) { return c >= r[0] && c <= r[1]; }) != ranges.end();
 }
 
 // Gets the number of UTF-8 characters (not bytes) in a string.
@@ -37,7 +36,7 @@ static std::size_t utf8Length(std::string_view s) {
 }
 
 // Gets the display width of a substring.
-static float substringSizeX(std::string_view s, std::size_t start, std::size_t length = std::string_view::npos) {
+static float substringSizeX(std::string_view s, const std::size_t start, const std::size_t length = std::string_view::npos) {
     // Convert char-based start and length into byte-based iterators
     auto stringStart = s.begin();
     utf8::unchecked::advance(stringStart, start);
@@ -55,7 +54,7 @@ static float substringSizeX(std::string_view s, std::size_t start, std::size_t l
 }
 
 // Gets the index of the character the mouse cursor is over.
-static std::size_t getCharIndex(std::string_view s, float cursorPosX, std::size_t start, std::size_t end) {
+static std::size_t getCharIndex(const std::string_view s, const float cursorPosX, const std::size_t start, const std::size_t end) {
     // Ignore cursor position when it is invalid
     if (cursorPosX < 0) return 0;
 
@@ -64,30 +63,29 @@ static std::size_t getCharIndex(std::string_view s, float cursorPosX, std::size_
     if (end < start) return utf8Length(s);
 
     // Midpoint of given string range
-    std::size_t midIdx = std::midpoint(start, end);
+    const std::size_t midIdx = std::midpoint(start, end);
 
     // Display width of the entire string up to the midpoint, gives the x-position where the (midIdx + 1)th char starts
-    float widthToMid = substringSizeX(s, 0, midIdx + 1);
+    const float widthToMid = substringSizeX(s, 0, midIdx + 1);
 
     // Same as above but exclusive, gives the x-position where the (midIdx)th char starts
-    float widthToMidEx = substringSizeX(s, 0, midIdx);
 
     // Perform a recursive binary search to find the correct index
     // If the mouse position is between the (midIdx)th and (midIdx + 1)th character positions, the search ends
-    if (cursorPosX < widthToMidEx) return getCharIndex(s, cursorPosX, start, midIdx - 1);
-    else if (cursorPosX > widthToMid) return getCharIndex(s, cursorPosX, midIdx + 1, end);
-    else return midIdx;
+    if (cursorPosX < substringSizeX(s, 0, midIdx)) return getCharIndex(s, cursorPosX, start, midIdx - 1);
+    if (cursorPosX > widthToMid) return getCharIndex(s, cursorPosX, midIdx + 1, end);
+    return midIdx;
 }
 
 // Wrapper for getCharIndex providing the initial bounds.
-static std::size_t getCharIndex(std::string_view s, float cursorPosX) {
+static std::size_t getCharIndex(const std::string_view s, const float cursorPosX) {
     return getCharIndex(s, cursorPosX, 0, utf8Length(s));
 }
 
 // Gets the scroll delta for the given cursor position and window bounds.
-static float getScrollDelta(float v, float min, float max) {
+static float getScrollDelta(const float v, const float min, const float max) {
     const float deltaScale = 10.0f * ImGui::GetIO().DeltaTime;
-    const float maxDelta = 100.0f;
+    constexpr float maxDelta = 100.0f;
 
     if (v < min) return std::max(-(min - v), -maxDelta) * deltaScale;
     else if (v > max) return std::min(v - max, maxDelta) * deltaScale;
@@ -97,33 +95,39 @@ static float getScrollDelta(float v, float min, float max) {
 
 TextSelect::Selection TextSelect::getSelection() {
     // Start and end may be out of order (ordering is based on Y position)
-    bool startBeforeEnd = selectStart.y < selectEnd.y || (selectStart.y == selectEnd.y && selectStart.x < selectEnd.x);
+    const bool startBeforeEnd = selectStart.y < selectEnd.y || (selectStart.y == selectEnd.y && selectStart.x < selectEnd.x);
 
     // Reorder X points if necessary
-    std::size_t startX = startBeforeEnd ? selectStart.x : selectEnd.x;
-    std::size_t endX = startBeforeEnd ? selectEnd.x : selectStart.x;
+    const std::size_t startX = startBeforeEnd ? selectStart.x : selectEnd.x;
+    const std::size_t endX = startBeforeEnd ? selectEnd.x : selectStart.x;
 
     // Get min and max Y positions for start and end
-    std::size_t startY = std::min(selectStart.y, selectEnd.y);
-    std::size_t endY = std::max(selectStart.y, selectEnd.y);
+    const std::size_t startY = std::min(selectStart.y, selectEnd.y);
+    const std::size_t endY = std::max(selectStart.y, selectEnd.y);
+
+    if (const std::size_t numLines = getNumLines(); startY >= numLines || endY >= numLines)
+    {
+        selectStart = { std::string_view::npos, std::string_view::npos };
+        selectEnd = { std::string_view::npos, std::string_view::npos };
+        return { 0, 0, 0, 0 };
+    }
 
     return { startX, startY, endX, endY };
 }
 
 void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
     const float textHeight = ImGui::GetTextLineHeightWithSpacing();
-    ImVec2 mousePos = ImGui::GetMousePos() - cursorPosStart;
+    const ImVec2 mousePos = ImGui::GetMousePos() - cursorPosStart;
 
     // Get Y position of mouse cursor, in terms of line number (capped to the index of the last line)
-    std::size_t y = std::min(static_cast<std::size_t>(std::floor(mousePos.y / textHeight)), getNumLines() - 1);
-    if (y < 0) return;
+    const std::size_t y = std::min(static_cast<std::size_t>(std::floor(mousePos.y / textHeight)), getNumLines() - 1);
 
     std::string_view currentLine = getLineAtIdx(y);
     const float offset = getTextOffset(y);
     const std::size_t x = getCharIndex(currentLine, mousePos.x - offset);
 
     // Get mouse click count and determine action
-    if (int mouseClicks = ImGui::GetMouseClickedCount(ImGuiMouseButton_Left); mouseClicks > 0) {
+    if (const int mouseClicks = ImGui::GetMouseClickedCount(ImGuiMouseButton_Left); mouseClicks > 0) {
         const ImGuiIO& io = ImGui::GetIO();
         if (mouseClicks % 3 == 0) {
             // Triple click - select line
@@ -135,8 +139,8 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
             utf8::unchecked::iterator startIt{ currentLine.data() };
             utf8::unchecked::iterator endIt{ currentLine.data() };
             for (std::size_t i = 0; i < x; i++) {
-                startIt++;
-                endIt++;
+                ++startIt;
+                ++endIt;
             }
 
             bool isCurrentBoundary = isBoundary(*startIt);
@@ -145,14 +149,14 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
             for (std::size_t startInv = 0; startInv <= x; startInv++) {
                 if (isBoundary(*startIt) != isCurrentBoundary) break;
                 selectStart = { x - startInv, y };
-                startIt--;
+                --startIt;
             }
 
             // Scan to right until a word boundary is reached
             for (std::size_t end = x; end <= utf8Length(currentLine); end++) {
                 selectEnd = { end, y };
                 if (isBoundary(*endIt) != isCurrentBoundary) break;
-                endIt++;
+                ++endIt;
             }
         } else if (io.KeyShift) {
             // Single click with shift - select text from start to click
@@ -173,17 +177,17 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
 
 void TextSelect::handleScrolling() {
     // Window boundaries
-    ImVec2 windowMin = ImGui::GetWindowPos();
-    ImVec2 windowMax = windowMin + ImGui::GetWindowSize();
+    const ImVec2 windowMin = ImGui::GetWindowPos();
+    const ImVec2 windowMax = windowMin + ImGui::GetWindowSize();
 
     // Get current and active window information from Dear ImGui state
     ImGuiWindow* currentWindow = ImGui::GetCurrentWindow();
     const ImGuiWindow* activeWindow = GImGui->ActiveIdWindow;
 
-    ImGuiID scrollXID = ImGui::GetWindowScrollbarID(currentWindow, ImGuiAxis_X);
-    ImGuiID scrollYID = ImGui::GetWindowScrollbarID(currentWindow, ImGuiAxis_Y);
-    ImGuiID activeID = ImGui::GetActiveID();
-    bool scrollbarsActive = activeID == scrollXID || activeID == scrollYID;
+    const ImGuiID scrollXID = ImGui::GetWindowScrollbarID(currentWindow, ImGuiAxis_X);
+    const ImGuiID scrollYID = ImGui::GetWindowScrollbarID(currentWindow, ImGuiAxis_Y);
+    const ImGuiID activeID = ImGui::GetActiveID();
+    const bool scrollbarsActive = activeID == scrollXID || activeID == scrollYID;
 
     // Do not handle scrolling if:
     // - There is no active window
@@ -192,9 +196,9 @@ void TextSelect::handleScrolling() {
     if (activeWindow == nullptr || activeWindow->ID != currentWindow->ID || scrollbarsActive) return;
 
     // Get scroll deltas from mouse position
-    ImVec2 mousePos = ImGui::GetMousePos();
-    float scrollXDelta = getScrollDelta(mousePos.x, windowMin.x, windowMax.x);
-    float scrollYDelta = getScrollDelta(mousePos.y, windowMin.y, windowMax.y);
+    const ImVec2 mousePos = ImGui::GetMousePos();
+    const float scrollXDelta = getScrollDelta(mousePos.x, windowMin.x, windowMax.x);
+    const float scrollYDelta = getScrollDelta(mousePos.y, windowMin.y, windowMax.y);
 
     // If there is a nonzero delta, scroll in that direction
     if (std::abs(scrollXDelta) > 0.0f) ImGui::SetScrollX(ImGui::GetScrollX() + scrollXDelta);
@@ -206,9 +210,6 @@ void TextSelect::drawSelection(const ImVec2& cursorPosStart) {
 
     // Start and end positions
     auto [startX, startY, endX, endY] = getSelection();
-
-    std::size_t numLines = getNumLines();
-    if (startY >= numLines || endY >= numLines) return;
 
     // Add a rectangle to the draw list for each line contained in the selection
     for (std::size_t i = startY; i <= endY; i++) {
@@ -226,15 +227,15 @@ void TextSelect::drawSelection(const ImVec2& cursorPosStart) {
         const float maxX = (i == endY ? substringSizeX(line, 0, endX) : substringSizeX(line, 0) + newlineWidth) + offset;
 
         // Rectangle height equals text height
-        float minY = static_cast<float>(i) * textHeight;
-        float maxY = static_cast<float>(i + 1) * textHeight;
+        const float minY = static_cast<float>(i) * textHeight;
+        const float maxY = static_cast<float>(i + 1) * textHeight;
 
         // Get rectangle corner points offset from the cursor's start position in the window
         ImVec2 rectMin = cursorPosStart + ImVec2{ minX, minY };
         ImVec2 rectMax = cursorPosStart + ImVec2{ maxX, maxY };
 
         // Draw the rectangle
-        ImU32 color = ImGui::GetColorU32(ImGuiCol_TextSelectedBg);
+        const ImU32 color = ImGui::GetColorU32(ImGuiCol_TextSelectedBg);
         ImGui::GetWindowDrawList()->AddRectFilled(rectMin, rectMax, color);
     }
 }
@@ -249,7 +250,7 @@ void TextSelect::copy() {
 
     for (std::size_t i = startY; i <= endY; i++) {
         // Similar logic to drawing selections
-        std::size_t subStart = i == startY ? startX : 0;
+        const std::size_t subStart = i == startY ? startX : 0;
         std::string_view line = getLineAtIdx(i);
 
         auto stringStart = line.begin();
@@ -266,19 +267,22 @@ void TextSelect::copy() {
         if (!lineToAdd.ends_with('\n') && i < endY) selectedText += '\n';
     }
 
-    ImGui::SetClipboardText(selectedText.c_str());
+	if (!selectedText.empty())
+	{
+        ImGui::SetClipboardText(selectedText.c_str());
+	}
 }
 
 void TextSelect::selectAll() {
-    std::size_t lastLineIdx = getNumLines() - 1;
-    std::string_view lastLine = getLineAtIdx(lastLineIdx);
+    const std::size_t lastLineIdx = getNumLines() - 1;
+    const std::string_view lastLine = getLineAtIdx(lastLineIdx);
 
     // Set the selection range from the beginning to the end of the last line
     selectStart = { 0, 0 };
     selectEnd = { utf8Length(lastLine), lastLineIdx };
 }
 
-void TextSelect::update(const size_t itemOffset) {
+void TextSelect::update(const std::size_t itemOffset) {
     if (itemOffset > 0)
     {
 		if (selectStart.y >= itemOffset)
@@ -302,10 +306,10 @@ void TextSelect::update(const size_t itemOffset) {
     }
 
     // ImGui::GetCursorStartPos() is in window coordinates so it is added to the window position
-    ImVec2 cursorPosStart = ImGui::GetWindowPos() + ImGui::GetCursorStartPos();
+    const ImVec2 cursorPosStart = ImGui::GetWindowPos() + ImGui::GetCursorStartPos();
 
     // Switch cursors if the window is hovered
-    bool hovered = ImGui::IsWindowHovered();
+    const bool hovered = ImGui::IsWindowHovered();
     if (hovered) ImGui::SetMouseCursor(ImGuiMouseCursor_TextInput);
 
     // Handle mouse events

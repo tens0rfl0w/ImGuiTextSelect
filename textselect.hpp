@@ -45,16 +45,16 @@ class TextSelect {
     std::function<float(std::size_t)> getTextOffset; // Gets the offset of the text
 
     // Gets the user selection. Start and end are guaranteed to be in order.
-    Selection getSelection() const;
+    Selection getSelection();
 
     // Processes mouse down (click/drag) events.
     void handleMouseDown(const ImVec2& cursorPosStart);
 
     // Processes scrolling events.
-    void handleScrolling() const;
+    static void handleScrolling();
 
     // Draws the text selection rectangle in the window.
-    void drawSelection(const ImVec2& cursorPosStart) const;
+    void drawSelection(const ImVec2& cursorPosStart);
 
 public:
     // Sets the text accessor functions.
@@ -73,7 +73,7 @@ public:
     }
 
     // Copies the selected text to the clipboard.
-    void copy() const;
+    void copy();
 
     // Selects all text in the window.
     void selectAll();

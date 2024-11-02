@@ -95,7 +95,7 @@ static float getScrollDelta(float v, float min, float max) {
     return 0.0f;
 }
 
-TextSelect::Selection TextSelect::getSelection() const {
+TextSelect::Selection TextSelect::getSelection() {
     // Start and end may be out of order (ordering is based on Y position)
     bool startBeforeEnd = selectStart.y < selectEnd.y || (selectStart.y == selectEnd.y && selectStart.x < selectEnd.x);
 
@@ -171,7 +171,7 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
     }
 }
 
-void TextSelect::handleScrolling() const {
+void TextSelect::handleScrolling() {
     // Window boundaries
     ImVec2 windowMin = ImGui::GetWindowPos();
     ImVec2 windowMax = windowMin + ImGui::GetWindowSize();
@@ -201,7 +201,7 @@ void TextSelect::handleScrolling() const {
     if (std::abs(scrollYDelta) > 0.0f) ImGui::SetScrollY(ImGui::GetScrollY() + scrollYDelta);
 }
 
-void TextSelect::drawSelection(const ImVec2& cursorPosStart) const {
+void TextSelect::drawSelection(const ImVec2& cursorPosStart) {
     if (!hasSelection()) return;
 
     // Start and end positions
@@ -239,7 +239,7 @@ void TextSelect::drawSelection(const ImVec2& cursorPosStart) const {
     }
 }
 
-void TextSelect::copy() const {
+void TextSelect::copy() {
     if (!hasSelection()) return;
 
     auto [startX, startY, endX, endY] = getSelection();

@@ -278,7 +278,29 @@ void TextSelect::selectAll() {
     selectEnd = { utf8Length(lastLine), lastLineIdx };
 }
 
-void TextSelect::update() {
+void TextSelect::update(const size_t itemOffset) {
+    if (itemOffset > 0)
+    {
+		if (selectStart.y >= itemOffset)
+		{
+			selectStart.y -= itemOffset;
+		}
+        else
+        {
+            selectStart.y = 0;
+        }
+
+        if (selectEnd.y >= itemOffset)
+        {
+            selectEnd.y -= itemOffset;
+        }
+        else
+        {
+            selectStart = { std::string_view::npos, std::string_view::npos };
+            selectEnd = { std::string_view::npos, std::string_view::npos };
+        }
+    }
+
     // ImGui::GetCursorStartPos() is in window coordinates so it is added to the window position
     ImVec2 cursorPosStart = ImGui::GetWindowPos() + ImGui::GetCursorStartPos();
 

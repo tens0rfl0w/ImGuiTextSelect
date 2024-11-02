@@ -79,5 +79,5 @@ public:
     void selectAll();
 
     // Draws the text selection rectangle and handles user input.
-    void update();
+    void update(size_t itemOffset = 0);
 };

@@ -40,8 +40,9 @@ class TextSelect {
 
     // Accessor functions to get line information
     // This class only knows about line numbers so it must be provided with functions that give it text data.
-    std::function<std::string_view(std::size_t)> getLineAtIdx; // Gets the string given a line number
+    std::function<std::string_view(size_t)> getLineAtIdx; // Gets the string given a line number
     std::function<std::size_t()> getNumLines; // Gets the total number of lines
+    std::function<float(std::size_t)> getTextOffset; // Gets the offset of the text
 
     // Gets the user selection. Start and end are guaranteed to be in order.
     Selection getSelection() const;
@@ -59,8 +60,12 @@ public:
     // Sets the text accessor functions.
     // getLineAtIdx: Function taking a std::size_t (line number) and returning the string in that line
     // getNumLines: Function returning a std::size_t (total number of lines of text)
+    // getTextOffset: Function taking a std::size_t (line number) and returning the offset of the text as a float
+    template <class T, class U, class V>
+    TextSelect(const T& getLineAtIdx, const U& getNumLines, const V& getTextOffset) : getLineAtIdx(getLineAtIdx), getNumLines(getNumLines), getTextOffset(getTextOffset) {}
+
     template <class T, class U>
-    TextSelect(const T& getLineAtIdx, const U& getNumLines) : getLineAtIdx(getLineAtIdx), getNumLines(getNumLines) {}
+    TextSelect(const T& getLineAtIdx, const U& getNumLines) : TextSelect(getLineAtIdx, getNumLines, []() { return 0.0f; }) {}
 
     // Checks if there is an active selection in the text.
     bool hasSelection() const {

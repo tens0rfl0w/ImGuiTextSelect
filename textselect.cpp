@@ -119,7 +119,8 @@ void TextSelect::handleMouseDown(const ImVec2& cursorPosStart) {
     if (y < 0) return;
 
     std::string_view currentLine = getLineAtIdx(y);
-    std::size_t x = getCharIndex(currentLine, mousePos.x);
+    const float offset = getTextOffset(y);
+    const std::size_t x = getCharIndex(currentLine, mousePos.x - offset);
 
     // Get mouse click count and determine action
     if (int mouseClicks = ImGui::GetMouseClickedCount(ImGuiMouseButton_Left); mouseClicks > 0) {
@@ -211,7 +212,8 @@ void TextSelect::drawSelection(const ImVec2& cursorPosStart) const {
 
     // Add a rectangle to the draw list for each line contained in the selection
     for (std::size_t i = startY; i <= endY; i++) {
-        std::string_view line = getLineAtIdx(i);
+        const std::string_view line = getLineAtIdx(i);
+        const float offset = getTextOffset(i);
 
         // Display sizes
         // The width of the space character is used for the width of newlines.
@@ -220,8 +222,8 @@ void TextSelect::drawSelection(const ImVec2& cursorPosStart) const {
 
         // The first and last rectangles should only extend to the selection boundaries
         // The middle rectangles (if any) enclose the entire line + some extra width for the newline.
-        float minX = i == startY ? substringSizeX(line, 0, startX) : 0;
-        float maxX = i == endY ? substringSizeX(line, 0, endX) : substringSizeX(line, 0) + newlineWidth;
+        const float minX = (i == startY ? substringSizeX(line, 0, startX) : 0) + offset;
+        const float maxX = (i == endY ? substringSizeX(line, 0, endX) : substringSizeX(line, 0) + newlineWidth) + offset;
 
         // Rectangle height equals text height
         float minY = static_cast<float>(i) * textHeight;

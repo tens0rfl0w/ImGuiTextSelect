@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <functional>
-#include <string_view>
 
 #include <imgui.h>
 

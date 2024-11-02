@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include <imgui.h>
+#define GImGui ImGui::GetCurrentContext()
 #include <imgui_internal.h>
 #include <utf8.h>
 
